@@ -5,10 +5,27 @@
   "description": "Native Pi session navigation, checkpoints and an explicit local mailbox",
   "type": "module",
   "license": "MIT",
-  "engines": {"node": ">=22"},
-  "exports": {"./mailbox": "./mailbox.mjs", "./sessions": "./sessions.mjs"},
-  "pi": {"extensions": ["./integrations/index.ts"]},
-  "peerDependencies": {"@earendil-works/pi-coding-agent": "1.3.0"},
-  "devDependencies": {"@earendil-works/pi-coding-agent": "1.3.0"},
-  "scripts": {"test": "node --test test/*.test.mjs"}
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    "./mailbox": "./mailbox.mjs",
+    "./sessions": "./sessions.mjs",
+    "./external-evidence": "./external-evidence.mjs",
+    "./review-manifest": "./review-manifest.mjs"
+  },
+  "pi": {
+    "extensions": [
+      "./integrations/index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "1.3.0"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "1.3.0"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  }
 }
