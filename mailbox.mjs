@@ -77,7 +77,10 @@ function mutate(box, action) {
   }
 }
 function safeMessage(message, target) {
-  return message && message.v === 1 && message.to === target && /^[a-f0-9-]{36}$/.test(message.id)
+  const keys = ['v', 'id', 'from', 'to', 'senderName', 'body', 'createdAt'];
+  return message && typeof message === 'object' && !Array.isArray(message)
+    && Object.keys(message).length === keys.length && keys.every(key => Object.hasOwn(message, key))
+    && message.v === 1 && message.to === target && /^[a-f0-9-]{36}$/.test(message.id)
     && typeof message.from === 'string' && /^[a-f0-9]{64}$/.test(message.from)
     && typeof message.senderName === 'string' && message.senderName.length <= 100
     && typeof message.body === 'string' && message.body.length <= 4000 && !BODY_CONTROLS.test(message.body)
