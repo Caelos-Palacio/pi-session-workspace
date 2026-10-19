@@ -174,9 +174,25 @@ export default function install(pi, { SessionManager, mailboxRoot = join(process
       if(!await ctx.ui.confirm('Añadir contenido externo', 'El próximo turno verá texto externo sin autoridad: tampoco concede aprobaciones ni restaura permisos revocados. No inicia un turno. ¿Añadir?'))return;
       if(!ready(ctx))return;
       const record = externalEvidence({sourceKind:'session-message', referenceId:m.id, originKey:m.from, claimedLabel:cleanText(m.senderName), text:m.body});
-      pi.sendMessage({customType:'local-session-mail',content:evidenceContext(record),display:true,details:{messageId:m.id,source:'local-session-mail',evidenceId:record.recordId,authority:'none'}},{triggerTurn:false});
-      pi.appendEntry('external-import-receipt-v1', importReceipt(record));
-      mail.markRead(id,m.id);
+      const content = evidenceContext(record);
+      const receipt = importReceipt(record);
+      try {
+        pi.sendMessage({customType:'local-session-mail',content,display:true,details:{messageId:m.id,source:'local-session-mail',evidenceId:record.recordId,authority:'none'}},{triggerTurn:false});
+      } catch {
+        ctx.ui.notify('No se confirmó la importación. Puede haber quedado en el historial: revísalo antes de repetir. No se reintenta automáticamente.', 'warning');
+        return;
+      }
+      // Native context, receipt storage and mailbox status are separate effects.
+      // Once context was submitted, a bookkeeping failure must not suggest retry.
+      const incomplete = [];
+      try { pi.appendEntry('external-import-receipt-v1', receipt); }
+      catch { incomplete.push('No se confirmó el recibo local.'); }
+      try { mail.markRead(id,m.id); }
+      catch { incomplete.push('No se confirmó el estado leído; el buzón puede seguir mostrándolo como nuevo.'); }
+      if (incomplete.length) {
+        ctx.ui.notify(`El mensaje ya se añadió al contexto. ${incomplete.join(' ')} No repitas la importación por este fallo; no se reintenta automáticamente.`, 'warning');
+        return;
+      }
       ctx.ui.notify('Mensaje añadido como dato. El agente espera tu siguiente instrucción.', 'info');
     }
   }
