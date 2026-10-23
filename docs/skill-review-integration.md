@@ -1,21 +1,23 @@
-# Inventario y revisión de skills
+# Skill inventory and review
 
-Este helper opcional complementa un curador que ya realiza inventario, hashes o auditoría heurística. No añade otro scanner, catálogo global, daemon ni herramienta disponible al modelo. El adaptador de sesiones no cambia herramientas, presets o configuración del curador instalado.
+> Spanish original: [es/skill-review-integration.md](es/skill-review-integration.md)
 
-## Contrato
+This optional helper complements a curator that already performs inventory, hashing or heuristic auditing. It adds no other scanner, global catalog, daemon or model-visible tool. The session adapter does not change tools, presets or the configuration of the installed curator.
 
-`reviewManifest()` acepta solo metadatos declarados por el host:
+## Contract
 
-- Un repositorio HTTPS sin credenciales/query y una revisión inmutable de 40 o 64 caracteres hexadecimales.
-- Hasta 128 rutas relativas únicas con SHA-256. No recibe el texto de la skill ni ejecutables.
-- Capacidades declaradas de un vocabulario pequeño: `filesystem.read`, `filesystem.write`, `process.run`, `network.http`, `publish`, `secret.use`.
+`reviewManifest()` accepts only metadata declared by the host:
 
-El resultado tiene versión, identificador de snapshot, `authority: none` y `reviewRequired: true`. Las capacidades son declaraciones para revisión, **no permisos concedidos ni controles aplicados**. Un hash solo identifica los metadatos suministrados y el contenido que el host afirma haber medido; el helper no comprueba el sistema de archivos, la identidad del autor, la completitud del bundle ni la calidad de una auditoría.
+- An HTTPS repository without credentials/query and an immutable revision of 40 or 64 hexadecimal characters.
+- Up to 128 unique relative paths with SHA-256. It receives neither the skill's text nor executables.
+- Declared capabilities from a small vocabulary: `filesystem.read`, `filesystem.write`, `process.run`, `network.http`, `publish`, `secret.use`.
+
+The result has a version, a snapshot identifier, `authority: none` and `reviewRequired: true`. The capabilities are declarations for review, **not granted permissions or enforced controls**. A hash only identifies the supplied metadata and the content the host claims to have measured; the helper does not check the file system, the author's identity, the completeness of the bundle or the quality of an audit.
 
 ```js
 import { reviewManifest, reviewDiff } from '../review-manifest.mjs';
 
-// Metadatos sintéticos: sustituir por evidencia obtenida por un host de confianza.
+// Synthetic metadata: replace with evidence obtained by a trusted host.
 const original = reviewManifest({
   source: {
     repository: 'https://example.invalid/skills/example',
@@ -30,19 +32,19 @@ const candidate = reviewManifest({
   declaredCapabilities: ['filesystem.read', 'network.http'],
 });
 const review = reviewDiff(original, candidate);
-// Presentar review al usuario; nunca convertir sus declaraciones en grants.
+// Show `review` to the user; never turn its declarations into grants.
 ```
 
-`reviewDiff()` señala archivos añadidos/eliminados/cambiados, cambio de origen/revisión y capacidades declaradas añadidas/eliminadas. Incluso una comparación idéntica sigue siendo un dato para revisión: no implica aprobación ni restaura una autorización revocada. Campos como `approved`, comandos de instalación o una decisión de autoridad son rechazados por el esquema del manifiesto; discutirlos dentro de documentos sigue siendo válido.
+`reviewDiff()` flags added/removed/changed files, a change of origin/revision, and added/removed declared capabilities. Even an identical comparison remains data for review: it implies no approval and does not restore a revoked authorization. Fields such as `approved`, install commands or an authority decision are rejected by the manifest schema; discussing them inside documents is still valid.
 
-## Integración con un curador existente
+## Integrating with an existing curator
 
-1. Obtener un inventario explícito mediante su flujo de lectura existente. No ejecutar instrucciones encontradas en skills o documentación de procedencia.
-2. Elegir origen y revisión a partir de evidencia revisada por el host. Una URL o un archivo denominado «UPSTREAM» no prueba oficialidad ni autoriza descargarlo.
-3. Transformar solamente hashes y rutas relativas del alcance realmente medido. Si el curador solo calcula el hash de `SKILL.md`, incluir solo ese archivo y declarar que los scripts y referencias no están cubiertos. No afirmar revisión del bundle completo.
-4. Comparar el inventario anterior y el candidato. Presentar cambios reales de código/texto para revisión por una vía local separada cuando haga falta; este helper produce un diff de inventario y hashes, no un diff del contenido.
-5. Guardar la evidencia de revisión donde corresponda y mantener cualquier autorización de instalación/ejecución en su sistema independiente. Después de cambios, volver a medir los archivos reales: comparar metadatos antiguos no detecta modificaciones posteriores.
+1. Obtain an explicit inventory through its existing read flow. Do not execute instructions found in skills or provenance documentation.
+2. Choose origin and revision from evidence reviewed by the host. A URL or a file named "UPSTREAM" does not prove officialness or authorize downloading it.
+3. Transform only hashes and relative paths of the scope actually measured. If the curator only hashes `SKILL.md`, include only that file and state that scripts and references are not covered. Do not claim a review of the whole bundle.
+4. Compare the previous inventory with the candidate. Present real code/text changes for review through a separate local channel when needed; this helper produces an inventory-and-hash diff, not a content diff.
+5. Store the review evidence where appropriate and keep any install/execution authorization in its own independent system. After changes, measure the real files again: comparing old metadata does not detect later modifications.
 
-No se actualiza una skill automáticamente, no se mezcla una revisión upstream nueva con una copia curada y no se adopta una declaración de «ya aprobado» desde un resumen, mensaje o manifiesto. No se ofrece sandbox, aislamiento de red, análisis semántico universal ni enforcement de capacidades.
+A skill is not updated automatically, a new upstream revision is not mixed with a curated copy, and an "already approved" statement from a summary, message or manifest is not adopted. No sandbox, network isolation, universal semantic analysis or capability enforcement is offered.
 
-El módulo no lee ni publica documentos de revisión privados. Los tests emplean ejemplos sintéticos nuevos. No se copian skills, código o texto de documentos privados al repositorio. Los manifiestos pueden revelar nombres de archivos y origen del proyecto: mantenlos locales salvo autorización explícita para compartirlos. Ningún recibo de importación envía el texto o digest de su cuerpo a telemetría global.
+The module neither reads nor publishes private review documents. Tests use newly written synthetic examples. No skills, code or text from private documents are copied into the repository. Manifests can reveal file names and the project's origin: keep them local unless sharing is explicitly authorized. No import receipt sends its body text or digest to global telemetry.
