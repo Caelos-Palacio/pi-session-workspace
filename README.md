@@ -1,20 +1,30 @@
 # Pi Session Workspace
 
-Navegación de sesiones, puntos de retorno y mensajes locales dentro de la terminal de **Pi**. Reutiliza el historial, árbol y cambio de proyecto nativos; no abre un navegador. No depende de Warp, Codex ni un proveedor o cuenta de modelos.
+**Jump between your Pi coding-agent sessions, mark checkpoints, and pass voluntary notes between sessions, all inside the terminal and with no server.**
 
-El buzón de `mailbox.mjs` es un módulo Node independiente de Pi. El adaptador de `integrations/index.ts` conecta las operaciones de sesión a Pi. No es un gestor universal de sesiones de otras aplicaciones.
+English · [Español](README.es.md)
 
-**MIT · Node 22+ · Pi 1.3.0 · Linux verificado.** Otras versiones de Pi y macOS no están verificadas. El buzón usa permisos y APIs POSIX; Windows no está soportado actualmente.
+![Animated demo: a local message goes from session A to the mailbox, and session B reads it as data with no authority; oversized or control-character messages are refused.](docs/media/demo.gif)
 
-## Instalar
+<sub>The demo animates real output of `mailbox.mjs` and `external-evidence.mjs` (synthetic text, temporary directory); Pi's own UI is not shown. Regenerate: `node docs/media/capture.mjs && python3 docs/media/demo.py` (needs Pillow and ffmpeg).</sub>
 
-Con Pi 1.3.0 ya instalado:
+## Why
+
+Pi already keeps your history and a session tree, but finding an old session in another project, returning to a good point of the current one, or telling a parallel session something means leaving the terminal and copy-pasting. This extension reuses Pi's native history, tree and project switching: it opens no browser, creates no second conversation index and starts no resident process. It does not depend on Warp, Codex or any model provider or account.
+
+The mailbox in `mailbox.mjs` is a standalone Node module independent of Pi; the adapter in `integrations/index.ts` connects the session operations to Pi. This is not a universal session manager for other applications.
+
+**MIT · Node 22+ · Pi 1.3.0 · Linux verified.** Other Pi versions and macOS are not verified. The mailbox uses POSIX permissions and APIs; Windows is currently unsupported.
+
+## Quick start
+
+With Pi 1.3.0 already installed:
 
 ```sh
 pi install git:github.com/Caelos-Palacio/pi-session-workspace
 ```
 
-Para inspeccionar el código antes de cargarlo:
+To inspect the code before loading it:
 
 ```sh
 git clone https://github.com/Caelos-Palacio/pi-session-workspace.git
@@ -22,92 +32,102 @@ cd pi-session-workspace
 pi --no-extensions --extension ./integrations/index.ts
 ```
 
-La segunda opción solo carga esta extensión explícita para esa apertura de Pi. El manifiesto del paquete registra el mismo adaptador para la instalación gestionada. Usa `/reload` para cargar cambios en una sesión abierta; si actualizas también otro componente con un protocolo de escritura distinto, termina sus escritores y vuelve a abrirlos para evitar mezclar versiones. Esta extensión no reinicia procesos por su cuenta.
+The second option loads only this explicit extension for that Pi run. The package manifest registers the same adapter for the managed install. Use `/reload` to load changes in an open session; if you also update another component with a different write protocol, stop its writers and reopen them to avoid mixing versions. This extension does not restart processes on its own.
 
-No copies archivos de autenticación o sesiones al repositorio. La extensión se carga con los permisos de tu proceso Pi: revisa su código antes de instalarla.
+Do not copy authentication files or sessions into the repository. The extension runs with the permissions of your Pi process: review its code before installing it.
 
-## Comandos
+## Commands
 
-| Comando | Acción |
+The command names and the on-screen text are currently in Spanish (they are code identifiers and are unchanged).
+
+| Command | Action |
 |---|---|
-| `/sesiones` | Menú de navegación, búsqueda, puntos y buzón |
-| `/sesiones buscar texto` | Busca nombres, carpetas e IDs en el proyecto actual |
-| `/sesiones todas [texto]` | Busca y retoma sesiones de otros proyectos |
-| `/guardar nombre` | Nombra la sesión y marca el punto actual |
-| `/puntos` | Vuelve a un punto de la sesión, conservando otras ramas |
-| `/enviar [nombre]` | Elige una sesión y escribe un mensaje local voluntario |
-| `/buzon` | Lee mensajes sin ejecutarlos |
-| `/buzon limpiar` | Elimina mensajes leídos tras confirmación |
+| `/sesiones` | Menu for navigation, search, checkpoints and the mailbox |
+| `/sesiones buscar texto` | Search names, folders and IDs in the current project |
+| `/sesiones todas [texto]` | Search and resume sessions of other projects |
+| `/guardar nombre` | Name the session and mark the current point |
+| `/puntos` | Return to a point of this session, keeping other branches |
+| `/enviar [nombre]` | Pick a session and write a voluntary local message |
+| `/buzon` | Read messages without executing them |
+| `/buzon limpiar` | Delete read messages after confirmation |
 
-Los selectores usan flechas, Enter y Escape. En el editor, Enter acepta el texto y Shift+Enter o Ctrl+J añade una línea. El listado muestra nombres, carpetas, fechas UTC y cantidad de mensajes, sin previews ni búsquedas dentro de prompts. Muestra hasta 30 sesiones por página. Descubre sesiones bajo demanda, con un límite de diez segundos; no crea un segundo índice de conversaciones ni procesos residentes.
+Selectors use arrows, Enter and Escape. In the editor, Enter accepts the text and Shift+Enter or Ctrl+J adds a line. The list shows names, folders, UTC dates and message counts, without previews or searching inside prompts. It shows up to 30 sessions per page. It discovers sessions on demand, with a ten-second limit.
 
-El cambio utiliza `ctx.switchSession`, conserva los hooks nativos de confianza/cancelación y carga la carpeta de destino. El gestor no interrumpe tareas activas. Los borradores y cambios de proyecto reciben confirmación. En el almacén estándar, «todas» recorre las carpetas estándar de Pi; con un almacén personalizado, respeta ese directorio.
+Switching uses `ctx.switchSession`, keeps Pi's native trust/cancellation hooks and loads the destination folder. The manager does not interrupt active tasks. Drafts and project changes ask for confirmation. In the standard store, "all" walks Pi's standard folders; with a custom store it respects that directory.
 
-El adaptador solo importa el paquete público de Pi. Utiliza `SessionManager.usesDefaultSessionDir()` disponible en Pi 1.3.0 para reconocer el almacén estándar. Si un host no expone esa capacidad, limita la búsqueda al directorio activo en lugar de ampliar el acceso. No usa rutas internas de una instalación personal.
+The adapter imports only Pi's public package. It uses `SessionManager.usesDefaultSessionDir()`, available in Pi 1.3.0, to recognize the standard store. If a host does not expose that capability, the search is limited to the active directory instead of widening access. It uses no internal paths of a personal installation.
 
-## Guardado y contexto
+## Saving and context
 
-Pi guarda automáticamente salvo `--no-session`. `/guardar` añade un nombre, una etiqueta y un pequeño registro del punto elegido. **El punto es una marca del historial, no un respaldo.** No recupera sesiones eliminadas ni restaura archivos. Nombrar una sesión vacía no fuerza una copia durable antes de su primer intercambio.
+Pi saves automatically unless `--no-session` is used. `/guardar` adds a name, a label and a small record of the chosen point. **A point is a history marker, not a backup.** It does not recover deleted sessions or restore files. Naming an empty session does not force a durable copy before its first exchange.
 
-`/puntos` navega sin pedir un resumen al modelo; la rama abandonada permanece en `/tree`. Los comandos nativos `/resume`, `/name`, `/session`, `/tree`, `/fork` y `/clone` siguen disponibles. El contexto sigue las reglas nativas de Pi, incluyendo rama activa y compactaciones. No garantiza equivalencia exacta entre proveedores ni disponibilidad del modelo original.
+`/puntos` navigates without asking the model for a summary; the abandoned branch stays in `/tree`. Pi's native `/resume`, `/name`, `/session`, `/tree`, `/fork` and `/clone` remain available. Context follows Pi's native rules, including the active branch and compactions. It does not guarantee exact equivalence across providers or availability of the original model.
 
-## Mensajes entre sesiones
+## Messages between sessions
 
-`/enviar` guarda solo el texto que escribes expresamente. Funciona con el destinatario cerrado. No adjunta historial, archivos ni resultados. La sesión receptora ve los pendientes al abrirse o al consultar `/buzon`; no hay IPC inmediato ni consultas periódicas.
+`/enviar` stores only the text you explicitly type. It works with the recipient closed. It attaches no history, files or results. The receiving session sees pending messages when it opens or when you run `/buzon`; there is no immediate IPC and no polling.
 
-Leer un mensaje no lo envía al modelo. Añadirlo al contexto exige otra acción y confirmación; se marca como dato externo no confiable y usa `triggerTurn: false`. No inicia un agente, no ejecuta instrucciones y no amplía permisos. La siguiente instrucción del usuario decide qué hacer. El contenido se serializa como un sobre JSON con procedencia y hash del texto, sin concatenar delimitadores alrededor del cuerpo. Su esquema de transporte rechaza campos adicionales de aprobación, grants o inicio de turno; esas palabras siguen pudiendo discutirse libremente dentro del texto. La etiqueta `authority: none` y el hash son metadatos, no una frontera de seguridad del modelo, una prueba de identidad ni una garantía de privacidad. El mensaje importado podrá enviarse al proveedor configurado en el siguiente turno del usuario. Ese encuadre no certifica resistencia absoluta a ataques semánticos.
+Reading a message does not send it to the model. Adding it to the context takes another action and a confirmation; it is marked as untrusted external data and uses `triggerTurn: false`. It starts no agent, executes no instructions and widens no permissions. The user's next instruction decides what happens. The content is serialized as a JSON envelope with provenance and a hash of the text, without concatenating delimiters around the body. Its transport schema rejects extra fields for approval, grants or turn start; those words can still be discussed freely inside the text. The `authority: none` label and the hash are metadata, not a security boundary for the model, proof of identity or a privacy guarantee. The imported message may be sent to the configured provider on the user's next turn. This framing does not certify absolute resistance to semantic attacks.
 
-El buzón vive en `${PI_CODING_AGENT_DIR}/session-mail` o `~/.pi/agent/session-mail`. Usa carpetas 0700, archivos 0600 y destinatarios derivados del ID nativo. Se rechazan symlinks, hardlinks inesperados, controles de terminal y archivos inválidos. Los mensajes muestran estado nuevo/leído y fecha; «enviado» significa guardado local, no que el receptor lo haya leído.
+The mailbox lives in `${PI_CODING_AGENT_DIR}/session-mail` or `~/.pi/agent/session-mail`. It uses 0700 folders, 0600 files and recipients derived from the native ID. Symlinks, unexpected hardlinks, terminal controls and invalid files are rejected. Messages show new/read status and a date; "sent" means saved locally, not that the receiver has read it.
 
-Envío, marcado y limpieza comparten un bloqueo exclusivo por buzón. Una operación concurrente recibe ocupado sin reintento automático. Las lecturas están acotadas a 8193 bytes incluso si el archivo crece después de validar sus metadatos. La publicación utiliza un archivo staging fijo, enlace exclusivo y sincronización; un error después de publicar informa resultado incierto.
+Sending, marking and cleaning share one exclusive lock per mailbox. A concurrent operation gets "busy" with no automatic retry. Reads are bounded to 8193 bytes even if the file grows after its metadata was validated. Publication uses a fixed staging file, an exclusive link and a sync; an error after publishing reports an uncertain outcome.
 
-Límites: 4000 caracteres y 8192 bytes por mensaje, 32 mensajes por buzón y hasta 256 reservas de buzón por almacén. No se borran mensajes automáticamente. Si se llena, el envío falla y el receptor puede limpiar los leídos. Una interrupción puede dejar un staging y un bloqueo pendientes de revisión. No se expiran, roban ni borran bloqueos ajenos automáticamente: **no elimines un bloqueo con escritores activos**. Confirmar que hayan terminado y revisar residuos es una tarea de mantenimiento local. Reservas simultáneas del mismo destinatario pueden consumir plazas adicionales, pero no amplían el cupo global.
+Limits: 4000 characters and 8192 bytes per message, 32 messages per mailbox and up to 256 mailbox reservations per store. Messages are never deleted automatically. If a mailbox is full, sending fails and the receiver can clear read messages. An interruption may leave a staging file and a lock pending review. Locks of others are never expired, stolen or deleted automatically: **do not remove a lock while writers are active**. Confirming that they have finished and reviewing leftovers is a local maintenance task. Simultaneous reservations for the same recipient may consume extra slots but do not widen the global quota.
 
-No hay cifrado en reposo ni autenticación frente a otro proceso del mismo usuario, que podría leer o alterar este almacén. No es una bóveda: **no envíes contraseñas, claves ni secretos**. No se incorpora telemetría ni una herramienta de envío disponible al modelo o a workers. Tras la importación explícita queda un recibo local en la sesión: código de resultado, IDs opacos, clase de fuente y fecha; no incluye cuerpo, digest del cuerpo, nombres ni rutas. No se envía a Observer o logs globales. El texto importado sí permanece en el historial/contexto de esa sesión por decisión del usuario.
+## Limitations and security model
 
-## Reutilizar el buzón
+- There is no encryption at rest and no authentication against another process of the same user, which could read or alter this store.
+- It is not a vault: **do not send passwords, keys or secrets.**
+- No telemetry, and no send tool is exposed to the model or to workers.
+- After an explicit import, a local receipt stays in the session: result code, opaque IDs, source class and date; no body, no body digest, no names or paths. It is not sent to Observer or global logs. The imported text does stay in that session's history/context by the user's decision.
+- Context import, the local receipt and the mailbox read status are separate effects, with no common transaction and no exactly-once guarantee. If the context was added but the receipt or marking fails, the UI says what stayed unconfirmed and asks you not to repeat the import for that failure. If Pi does not confirm delivery to the context, the result is declared uncertain and you should review the history before repeating. There are no automatic retries and no completion receipts written before sending.
+- These checks validate this adapter's behavior, not a model's resistance to malicious instructions nor the permissions of other extensions.
 
-`mailbox.mjs` no importa Pi, proveedores, modelos ni herramientas externas:
+## Reusing the mailbox
+
+`mailbox.mjs` imports no Pi, providers, models or external tools:
 
 ```js
 import { Mailboxes } from './mailbox.mjs';
-const mail = new Mailboxes('/ruta/privada/elegida-por-el-host');
-mail.send('session-source', 'session-target', 'Nombre visible', 'Texto voluntario');
+const mail = new Mailboxes('/private/path/chosen-by-the-host');
+mail.send('session-source', 'session-target', 'Visible name', 'Voluntary text');
 const { messages } = mail.list('session-target');
-// Leer no ejecuta el cuerpo. El host decide qué acciones ofrecer al usuario.
+// Reading does not execute the body. The host decides which actions to offer the user.
 ```
 
-El host debe validar los destinatarios contra su propio catálogo y mantener los cuerpos fuera de logs de auditoría. Los permisos POSIX y las limitaciones anteriores también se aplican a este uso independiente.
+The host must validate recipients against its own catalog and keep bodies out of audit logs. The POSIX permissions and the limitations above also apply to this standalone use.
 
-## Pruebas
+## Tests
 
 ```sh
 npm ci --ignore-scripts
 npm test
 ```
 
-La dependencia de pruebas está fijada a Pi 1.3.0 en `package-lock.json`. La suite del buzón y los comandos no requiere acceso a cuentas, modelos o sesiones reales. La prueba de loader usa una ruta derivada del paquete instalado, únicamente para comprobar integración con esa versión; el adaptador de ejecución no importa ese módulo interno.
-
-También puedes ejecutar la suite independiente del buzón sin instalar Pi:
+The test dependency is pinned to Pi 1.3.0 in `package-lock.json`. The mailbox and command suite needs no access to accounts, models or real sessions. The loader test uses a path derived from the installed package, only to check integration with that version; the runtime adapter does not import that internal module. You can also run the standalone mailbox suite without installing Pi:
 
 ```sh
 node test/mailbox.test.mjs
 ```
 
-Se verifican privacidad del listado, navegación, guardado, borradores/cancelaciones, importación explícita, permisos, cupos, productores paralelos, carrera ABA entre limpieza/envío, archivo creciente, staging fallido y bloqueo ajeno. Las pruebas nativas comprueban carga del adaptador, reapertura de puntos, conservación de ramas y exclusión del registro auxiliar del contexto LLM.
+The suites cover listing privacy, navigation, saving, drafts/cancellations, explicit import, permissions, quotas, parallel producers, the ABA race between cleanup and send, a growing file, failed staging and a foreign lock. The native tests check adapter loading, reopening of points, branch preservation and exclusion of the auxiliary record from the LLM context.
 
-`node test/qa-fixtures.mjs` genera dos sesiones ficticias en un directorio temporal aislado para inspección terminal; solo muestra sus rutas e IDs de prueba. No lee sesiones o credenciales existentes. La interfaz original fue comprobada offline a 80 × 24 columnas, incluido cambio de proyecto y mensajería. Esta publicación incluye una adaptación portable adicional y su propia verificación; no presupone pruebas de otras plataformas.
+`node test/qa-fixtures.mjs` generates two fictitious sessions in an isolated temporary directory for terminal inspection; it only prints their paths and test IDs. It reads no existing sessions or credentials. The original interface was checked offline at 80 × 24 columns, including project switching and messaging. This publication includes an additional portable adaptation and its own verification; it does not presuppose tests on other platforms.
 
-Documentación primaria de Pi: [sesiones](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/sessions.md), [extensiones](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md) y [paquetes](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/packages.md). Para compatibilidad exacta, consulta también la documentación incluida con Pi 1.3.0.
+Primary Pi documentation: [sessions](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/sessions.md), [extensions](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md) and [packages](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/packages.md). For exact compatibility, also consult the documentation bundled with Pi 1.3.0.
 
-## Evidencia externa y curación de skills
+## External evidence and skill curation
 
-`external-evidence.mjs` representa mensajes, documentos, skills o resúmenes como datos con procedencia, referencia opaca y hash de contenido. El host fija `authority: none`; el texto no cambia esos campos aunque incluya JSON o aparentes aprobaciones. Esta estructura no concede permisos, no recupera autorizaciones revocadas y no inicia turnos. Las decisiones de autorización deben seguir en el host correspondiente, fuera de prompts, resúmenes y nombres de remitente. No se instala un filtro de palabras ni se afirma que un modelo vaya a obedecer siempre esa distinción.
+`external-evidence.mjs` represents messages, documents, skills or summaries as data with provenance, an opaque reference and a content hash. The host sets `authority: none`; the text cannot change those fields even if it contains JSON or apparent approvals. This structure grants no permissions, does not recover revoked authorizations and starts no turns. Authorization decisions must stay in the corresponding host, outside prompts, summaries and sender names. No keyword filter is installed and there is no claim that a model will always respect that distinction.
 
-La importación manual del buzón genera `external-import-receipt-v1` en el historial local, excluido del contexto del modelo. El recibo contiene únicamente resultado, IDs opacos, clase de fuente y fecha, sin texto, digest del contenido, nombres ni rutas. No se añade integración con Observer o logs globales. El propio mensaje importado sí queda en contexto/historial por decisión explícita del usuario.
+The optional helper `review-manifest.mjs` compares declarative skill inventories with pinned origin/revision, file hashes and declared capabilities. It does not scan, execute, install, activate or approve skills. Its [integration guide](docs/skill-review-integration.md) explains how it complements an existing curator without replacing it, what it compares and what it does not prove.
 
-El helper opcional `review-manifest.mjs` compara inventarios declarativos de skills con origen/revisión fijados, hashes de archivos y capacidades declaradas. No escanea, ejecuta, instala, activa ni aprueba skills. Su [guía de integración](docs/skill-review-integration.md) explica cómo complementa un curador existente sin sustituirlo, qué compara y qué no demuestra.
+## Related projects
 
-Verificación de esta mejora: pruebas con mensajes v1 persistidos, payloads sintéticos que aparentan aprobación, breakout JSON/delimitadores y resúmenes que piden recuperar permisos. Una prueba terminal offline a 80 × 24 comprobó la confirmación explícita y la importación del sobre sin iniciar un nuevo turno; el recibo quedó fuera del contexto LLM. Estas comprobaciones validan el comportamiento de este adaptador, no la resistencia de un modelo ante instrucciones maliciosas ni los permisos de otras extensiones.
+- [Agent Observer](https://github.com/Caelos-Palacio/agent-observer): local, metadata-only usage reviews for AI coding agents, with an optional Pi extension.
+- [Agent Credential Broker](https://github.com/Caelos-Palacio/agent-credential-broker): lets agents call authenticated APIs without seeing the key.
 
-La importación al contexto, el recibo local y el estado leído del buzón son efectos separados, sin transacción común ni garantía de entrega exactamente una vez. Si el contexto se añadió pero falla el recibo o el marcado, la interfaz indica qué quedó sin confirmar y pide no repetir la importación por ese fallo. Si Pi no confirma la entrega al contexto, el resultado se declara incierto y se debe revisar el historial antes de repetir. No hay reintentos automáticos ni recibos de completado escritos antes de enviar el mensaje.
+## License
+
+[MIT](LICENSE)
